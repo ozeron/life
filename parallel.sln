@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.21005.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "parallel_mpi", "parallel\parallel.vcxproj", "{DFB02C46-48D6-4C59-ADDA-B8C7DDE10DE2}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "parallel_open_mp", "parallel_open_mp\parallel_open_mp.vcxproj", "{34B1A643-1073-422A-A85C-262888227BF4}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sequence", "sequence\sequence.vcxproj", "{43BBDB14-CE39-4D1D-9AA1-805B8CA8E5B4}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DFB02C46-48D6-4C59-ADDA-B8C7DDE10DE2}.Debug|Win32.ActiveCfg = Debug|Win32
+		{DFB02C46-48D6-4C59-ADDA-B8C7DDE10DE2}.Debug|Win32.Build.0 = Debug|Win32
+		{DFB02C46-48D6-4C59-ADDA-B8C7DDE10DE2}.Release|Win32.ActiveCfg = Release|Win32
+		{DFB02C46-48D6-4C59-ADDA-B8C7DDE10DE2}.Release|Win32.Build.0 = Release|Win32
+		{34B1A643-1073-422A-A85C-262888227BF4}.Debug|Win32.ActiveCfg = Debug|Win32
+		{34B1A643-1073-422A-A85C-262888227BF4}.Debug|Win32.Build.0 = Debug|Win32
+		{34B1A643-1073-422A-A85C-262888227BF4}.Release|Win32.ActiveCfg = Release|Win32
+		{34B1A643-1073-422A-A85C-262888227BF4}.Release|Win32.Build.0 = Release|Win32
+		{43BBDB14-CE39-4D1D-9AA1-805B8CA8E5B4}.Debug|Win32.ActiveCfg = Debug|Win32
+		{43BBDB14-CE39-4D1D-9AA1-805B8CA8E5B4}.Debug|Win32.Build.0 = Debug|Win32
+		{43BBDB14-CE39-4D1D-9AA1-805B8CA8E5B4}.Release|Win32.ActiveCfg = Release|Win32
+		{43BBDB14-CE39-4D1D-9AA1-805B8CA8E5B4}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
