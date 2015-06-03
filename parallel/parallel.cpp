@@ -21,10 +21,10 @@
 
 using namespace std;
 
-const unsigned int GENS = 9;
+const unsigned int GENS = 68;
 unsigned int STARTROW=1,
-	MAXROW = 9,
-	MAXCOL = 9,
+	MAXROW = 20,
+	MAXCOL = 20,
 	GLOBAL_MAXROW = MAXROW,
 	GLOBAL_MAXCOL = MAXCOL;
 
@@ -49,6 +49,7 @@ typedef std::vector<message_cell> MessageList;
 typedef std::pair<int, int> ipair;
 typedef std::vector<ipair> work_map;
 typedef std::vector<std::vector<int>> int_int;
+typedef std::vector<int> ints;
 typedef void(*list_function)(cell);
 
 Grid map;                // array holding cells
@@ -57,7 +58,7 @@ List newlive,            // cells that have just been vivified
 newdie,             // cells that have just died
 maylive,            // candidates to vivify in next generation
 maydie;           // candidates to kill in next generation
-MessageList sendNewToTop,  // list contain new cells from first row
+ints sendNewToTop,  // list contain new cells from first row
 			sendNewToBottom; // list contain new cells from last row
 MPI_Datatype  MPI_CELL;
 
@@ -79,11 +80,10 @@ void UpdateNeighbors(cell cc){
 	cell neighbor;      // structure form of a neighbor
 	int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	cout << "Rank " << rank << " Updating neighbours for " << cc.row << " " << cc.col << std::endl;
+	//cout << "Rank " << rank << " Updating neighbours for " << cc.row << " " << cc.col << std::endl;
 	for (r = cc.row - 1; r <= cc.row + 1; ++r)
 	for (c = cc.col - 1; c <= cc.col + 1; ++c){
-		if ((r != cc.row || c != cc.col) && cc.row >= STARTROW && cc.row <= MAXROW &&
-			cc.col >= 1 && cc.col <= MAXCOL) {  //skip cell itself and edge cases
+		if (r != cc.row || c != cc.col) {  //skip cell itself and edge cases
 			if (map[cc.row][cc.col] == alive){
 				numNeighbors[r][c]++;
 			}
@@ -192,16 +192,6 @@ void Initialize(Grid& map, GridCount& neighbours, List* newlive, List* newdie, L
 		if (map[row][col] == dead) {
 			newlive->push_back(c);
 		}
-		if (c.row == STARTROW){
-			message_cell cñ = { c.row, c.col, (int)alive };
-			sendNewToTop.push_back(cñ);
-			cout << "Rank " << rank << " add cell to sendNewToTop " << c.row << " " << c.col << std::endl;
-		}
-		if (c.row == MAXROW){
-			message_cell cñ = { c.row, c.col, (int)alive };
-			sendNewToBottom.push_back(cñ);
-			cout << "Rank " << rank << " add cell to sendNewToBottom " << c.row << " " << c.col << std::endl;
-		}
 		map[row][col] = alive;
 	}
 
@@ -211,7 +201,7 @@ void Initialize(Grid& map, GridCount& neighbours, List* newlive, List* newdie, L
 }
 
 char* MapToString(Grid& map){
-	int size = MAXCOL*(MAXROW - STARTROW + 1) + 1;
+	int size = MAXCOL*(MAXROW+1);
 	char* str = new char [size];
 	for (int i = 0; i < size; i++) str[i] = '\0';
 	for (int row = STARTROW; row <= MAXROW; row++) {
@@ -221,7 +211,6 @@ char* MapToString(Grid& map){
 		}
 		str = strcat(str, "\n");
 	}
-	str = strcat(str, "\0");
 	return str;
 }
 
@@ -242,16 +231,6 @@ void Vivify(cell c){
 			c.col >= 1 && c.col <= MAXCOL) {
 			map[c.row][c.col] = alive;
 			newlive.push_back(c);
-			if (c.row == STARTROW){
-				message_cell cñ = { c.row, c.col, (int)alive };
-				sendNewToTop.push_back(cñ);
-				cout << "Rank " << rank << " add cell to sendNewToTop " << c.row << " " << c.col << std::endl;
-			}
-			if (c.row == MAXROW){
-				message_cell cñ = { c.row, c.col, (int)alive };
-				sendNewToBottom.push_back(cñ);
-				cout << "Rank " << rank << " add cell to sendNewToBottom " << c.row << " " << c.col << std::endl;
-			}
 		}
 	}
 }
@@ -266,16 +245,6 @@ void Kill(cell c){
 			c.col >= 1 && c.col <= MAXCOL) {
 			map[c.row][c.col] = dead;
 			newdie.push_back(c);
-			if (c.row == STARTROW){
-				message_cell cc = { c.row, c.col, (int)dead };
-				sendNewToTop.push_back(cc);
-				cout << "Rank " << rank << " add cell to sendNewToTop "<< cc.row << " " << cc.col << std::endl;
-			}
-			if (c.row == MAXROW){
-				message_cell cc = { c.row, c.col, (int)dead };
-				sendNewToBottom.push_back(cc);
-				cout << "Rank " << rank << " add cell to sendNewToBottom " << cc.row << " " << cc.col << std::endl;
-			}
 		}
 	}
 }
@@ -327,33 +296,52 @@ int myRankMinus1(){
 	}
 }
 
-void  UpdateBorders(message_cell* border, int size, Grid* Map)
+void  UpdateBorders(int* border, int r)
 {
+	cell neighbor;
 	int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	for (int i = 0; i < size; i++){
-		message_cell mc = border[i];
-		cell c = { mc.row, mc.col };
-		cell_state state = (cell_state)mc.state;
-		std::cout << "Rank " << rank << " add " << mc.row << " " << mc.col << " " << mc.state << std::endl;
-		if (c.row >= STARTROW && c.row <= MAXROW &&
-			c.col >= 1 && c.col <= MAXCOL)
-			(*Map)[c.row][c.col] = state;
-		if (state == alive) {
-			//std::cout << "Rank " << rank << " Adding to newlive." << std::endl;
-			newlive.push_back(c);
-		}
-		else {
-			//std::cout << "Rank " << rank << " Adding to newdie." << std::endl;
-			newdie.push_back(c);
-		}
+	for (int i = 0; i < MAXCOL; i++){
+		int c = i + 1;
+		numNeighbors[r][c] += border[i];
+		switch (numNeighbors[r][c]) {
+		case 1:
+			if (map[r][c] == alive) {
+				neighbor.row = r;
+				neighbor.col = c;
+				maydie.push_back(neighbor);
+			}
+			break;
+		case 3:
+			if (map[r][c] == dead) {
+				neighbor.row = r;
+				neighbor.col = c;
+				maylive.push_back(neighbor);
+			}
+			break;
+		case 4:
+			if (map[r][c] == alive) {
+				neighbor.row = r;
+				neighbor.col = c;
+				maydie.push_back(neighbor);
+			}
+			break;
+		}  // switch
 	}
-	//std::cout << "Rank " << rank << " Finish update borders;" << std::endl;
+	
 } // UpdateBorders
 
-void  SendToNeighbor(MessageList* sendListHigher,
-					 MessageList* sendListLower,
-					 Grid*        Map)
+
+void CoutArray(int *array){
+	int rank;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	for (int i = 0; i < MAXCOL; i++){
+		std::cout << array[i];
+	}
+}
+
+void  SendToNeighbor(ints *sendListHigher,
+					 ints *sendListLower)
 {
 	int rank; 
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -362,57 +350,47 @@ void  SendToNeighbor(MessageList* sendListHigher,
 	MPI_Request   recvHandleHigher;
 	MPI_Request   sendHandleLower;
 	MPI_Request   recvHandleLower;
-
-	/*MessageList   recvListLower;
-	MessageList   recvListHigher;
-	recvListLower.resize(MAXCOL);
-	recvListHigher.resize(MAXCOL);*/
-	message_cell *sendCellsHigher,
-		*sendCellsLower,
-		*receiveCellsHigher = new message_cell[MAXCOL],
-		*receiveCellsLower = new message_cell[MAXCOL];
-	if (sendListHigher->size() == 0){
-		sendListHigher->resize(1);
-		sendListHigher->at(0).row = -2;
-		sendListHigher->at(0).col = -2;
-	}
-	sendCellsHigher = &(*sendListHigher)[0];
-
-	if (sendListLower->size() == 0) {
-		sendListLower->resize(1);
-		sendListLower->at(0).row = -2;
-		sendListLower->at(0).col = -2;
-	}
-	sendCellsLower = &(*sendListLower)[0];
+	int *sendCellsHigher, *sendCellsLower,
+		*receiveCellsHigher, *receiveCellsLower;
+	receiveCellsHigher = new int[MAXCOL];
+	receiveCellsLower = new int[MAXCOL];
+	sendCellsHigher = &(*sendListHigher)[1];
+	sendCellsLower  = &(*sendListLower)[1];
 
 	int rankPlus1 = myRankPlus1(),
 		rankMinus1 = myRankMinus1(),
 		received;
-	std::cout << "Rank" << rank << " Sending higher " << (*sendCellsHigher).row << " " << (*sendCellsHigher).col << std::endl;
-	MPI_Isend(sendCellsHigher, sendListHigher->size(), MPI_CELL, rankMinus1, TAG, MPI_COMM_WORLD, &sendHandleHigher);
-	std::cout << "Rank" << rank << " Sending lower " << (*sendCellsLower).row << " " << (*sendCellsLower).col << std::endl;
-	MPI_Isend(sendCellsLower, 1, MPI_CELL, rankPlus1, TAG, MPI_COMM_WORLD, &sendHandleLower);
+
+	/*std::cout << "Rank" << rank << " Sending higher ";
+	CoutArray(sendCellsHigher);
+	cout << endl;*/
+	MPI_Isend(sendCellsHigher, MAXCOL, MPI_INT, rankMinus1, TAG, MPI_COMM_WORLD, &sendHandleHigher);
+	/*std::cout << "Rank" << rank << " Sending lower ";
+	CoutArray(sendCellsLower);
+	cout << endl;*/
+	MPI_Isend(sendCellsLower, MAXCOL, MPI_INT, rankPlus1, TAG, MPI_COMM_WORLD, &sendHandleLower);
 
 	MPI_Irecv(receiveCellsHigher, MAXCOL, MPI_CELL, rankMinus1, TAG, MPI_COMM_WORLD, &recvHandleHigher);
 	MPI_Irecv(receiveCellsLower, MAXCOL, MPI_CELL, rankPlus1, TAG, MPI_COMM_WORLD, &recvHandleLower);
 
 	MPI_Wait(&recvHandleHigher, &status1);
 	MPI_Get_count(&status1, MPI_CELL, &received);
-	//std::cout << "Rank" << rank << " Received higher " << received << std::endl;
+	
 	if (status1.MPI_SOURCE != MPI_PROC_NULL){
-		//std::cout << std::endl;
-		std::cout << "Rank" << rank << " Received " << receiveCellsHigher[0].row << " " << receiveCellsHigher[0].col << std::endl;
-		UpdateBorders(receiveCellsHigher, received, Map);
-		;
+		/*std::cout << "Rank" << rank << " Received higher ";
+		CoutArray(receiveCellsHigher);
+		cout << std::endl;*/
+		UpdateBorders(receiveCellsHigher, STARTROW);
 	}
 
 	MPI_Wait(&recvHandleLower, &status2);
 	MPI_Get_count(&status2, MPI_CELL, &received);
-	//std::cout << "Rank" << rank << " Received lower " << received << std::endl;
+	
 	if (status2.MPI_SOURCE != MPI_PROC_NULL){
-		//std::cout << std::endl;
-		std::cout << "Rank" << rank << " Received " << receiveCellsLower[0].row << " " << receiveCellsLower[0].col << std::endl;
-		UpdateBorders(receiveCellsLower, received, Map);
+		/*std::cout << "Rank" << rank << " Received lower ";
+		CoutArray(receiveCellsLower);
+		cout << std::endl;*/
+		UpdateBorders(receiveCellsLower, MAXROW);
 		;
 	}
 	
@@ -420,28 +398,71 @@ void  SendToNeighbor(MessageList* sendListHigher,
 	MPI_Wait(&sendHandleLower, &status2);
 } // SendToNeighbors
 
+void Zerify(ints *list){
+	for (int i = 0; i < list->size(); i++){
+		(*list)[i] = 0;
+	}
+}
+void PrintParallel(int gens){
+	int rank, num_processes;
+	MPI_Comm_size(MPI_COMM_WORLD, &num_processes);
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	MPI_Status status;
+	MPI_Request request;
+	if (rank == 0) {
+		char * str = MapToString(map);
+		std::cout << "Generation:" << gens << std::endl;
+		std::cout << str;
+		for (int i = 1; i < num_processes; i++) {
+			int str_size;
+			char *str;
+			MPI_Recv(&str_size, 1, MPI_INT, i, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			str = new char[str_size + 1];
+			//std::cout << "Receiving " << str_size << std::endl;
+			MPI_Irecv(str, str_size, MPI_CHAR, i, TAG, MPI_COMM_WORLD, &request);
+			MPI_Wait(&request, &status);
+			std::cout << str;
+			//delete[] str;
+		}
+	}
+	else {
+		char *buffer = MapToString(map);
+		int str_size = strlen(buffer) + 1;
+		//std::cout << "Sending: " << str_size << std::endl;
+		MPI_Send(&str_size, 1, MPI_INT, 0, TAG, MPI_COMM_WORLD);
+		MPI_Isend(buffer, str_size, MPI_CHAR, 0, TAG, MPI_COMM_WORLD, &request);
+		MPI_Wait(&request, &status);
+	}
+	
+}
+
 void simulate(){
 	unsigned int gencount = 0;
+	PrintParallel(gencount);
 	while (gencount < GENS) {
-		WriteMap(map, gencount);
+		ints *higher = &(numNeighbors[STARTROW - 1]);
+		ints *lower = &numNeighbors[MAXROW + 1];
+		SendToNeighbor(higher, lower);
+		Zerify(higher);
+		Zerify(lower);
+
+		//PrintParallel(gencount);
 		gencount++;
 		TraverseList(&maylive, Vivify);
 		TraverseList(&maydie, Kill);
 		maylive.clear();
 		maydie.clear();
-		SendToNeighbor(&sendNewToTop, &sendNewToBottom, &map);
 		TraverseList(&newlive, UpdateNeighbors);
 		TraverseList(&newdie, UpdateNeighbors);
 		newlive.clear();
 		newdie.clear();
-		sendNewToBottom.clear();
-		sendNewToTop.clear();
 	}
-	WriteMap(map, gencount);
+	PrintParallel(gencount);
 }
 
-int _tmain(int argc, char* argv[]) {
-	MPI_Init(&argc, &argv);
+
+
+void run(){
 	int rank, num_processes, start, end, size;
 	MPI_Comm_size(MPI_COMM_WORLD, &num_processes);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -495,30 +516,23 @@ int _tmain(int argc, char* argv[]) {
 	std::vector<int> v(current_input, &current_input[size]);
 	Initialize(map, numNeighbors, &newlive, &newdie, &maylive, &maydie, &v);
 	simulate();
-	if (rank == 0) {
-		//char * str = MapToString(map);
-		//std::cout << "End:" << std::endl;
-		//std::cout << str;
-		for (int i = 1; i < num_processes; i++) {
-			int str_size;
-			char *str;
-			MPI_Recv(&str_size, 1, MPI_INT, i, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			str = new char[str_size+1];
-			//std::cout << "Receiving " << str_size << std::endl;
-			MPI_Irecv(str, str_size, MPI_CHAR, i, TAG, MPI_COMM_WORLD, &request);
-			MPI_Wait(&request, &status);
-			std::cout << str;
-			//delete[] str;
-		}
+	
+	//MPI_Barrier(MPI_COMM_WORLD);
+	
+}
+
+int _tmain(int argc, char* argv[]) {
+	int rank;
+	clock_t begin, end;
+	MPI_Init(&argc, &argv);
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	if (rank == 0)
+		begin = clock();
+	run();
+	if (rank == 0){
+		end = clock();
+		double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+		std::cout << "Simulated " << GENS << " generations in " << elapsed_secs << " sec." << std::endl;
 	}
-	else {
-		char *buffer = MapToString(map);
-		int str_size = strlen(buffer) + 1;
-		//std::cout << "Sending: " << str_size << std::endl;
-		MPI_Send(&str_size, 1, MPI_INT, 0, TAG, MPI_COMM_WORLD);
-		MPI_Isend(buffer, str_size, MPI_CHAR, 0, TAG, MPI_COMM_WORLD, &request);
-		MPI_Wait(&request, &status);
-	}
-	//
 	MPI_Finalize();
 }
