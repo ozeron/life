@@ -9,11 +9,10 @@
 #include <fstream>
 #include <ctime>
 #include <omp.h>
-#include <concurrent_vector.h>
 
-const unsigned int MAXROW = 100;
-const unsigned int MAXCOL = 100;
-const unsigned int GENS = 100;
+unsigned int MAXROW = 20;
+unsigned int MAXCOL = 20;
+unsigned int GENS = 300;
 
 struct cell {
 	int row;
@@ -24,7 +23,7 @@ enum cell_state { dead = 0, alive = 1 };
 
 typedef std::vector<std::vector<cell_state>> Grid;
 typedef std::vector<std::vector<int>> GridCount;
-typedef concurrency::concurrent_vector<cell> List;
+typedef std::vector<cell> List;
 typedef void(*list_function)(cell);
 
 Grid map;                // array holding cells
@@ -77,15 +76,8 @@ void UpdateNeighbors(cell c){
 }
 
 void TraverseList(List* list, list_function f){
-#pragma parallel for
 	for (int i = 0; i < list->size(); i++) {
 		f(list->at(i));
-	}
-}
-
-void ParallelTraverseList(List* list, list_function f){
-	for (List::const_iterator i = list->begin(); i != list->end(); ++i) {
-			f(*i);
 	}
 }
 
@@ -102,10 +94,10 @@ void Initialize(Grid& map, GridCount& neighbours, List* newlive, List* newdie, L
 			neighbours[row][col] = 0;
 		}
 	}
-
+	file >> GENS >> MAXROW >> MAXCOL;
 	file >> row;
 	file >> col;
-
+	//std::cout << row << "#" << col << std::endl;
 	while (row != 0 && col != 0) {
 		if (row >= 1 && row <= MAXROW && col >= 1 && col <= MAXCOL) {
 			cell newCell = { row, col };
@@ -163,13 +155,13 @@ void Error(std::string str){
 int _tmain(int argc, _TCHAR* argv[]) {
 	clock_t begin = clock();
 	unsigned int gencount = 0;
-	std::string file_p("Y:\\Documents\\data.txt");
+	std::string file_p("D:\data.txt");
 	Initialize(map, numNeighbors, &newlive, &newdie, &maylive, &maydie, file_p);
 	WriteMap(map, gencount);
 	while (gencount < GENS) {
 		gencount++;
-		ParallelTraverseList(&maylive, Vivify);
-		ParallelTraverseList(&maydie, Kill);
+		TraverseList(&maylive, Vivify);
+		TraverseList(&maydie, Kill);
 		maylive.clear();
 		maydie.clear();
 		TraverseList(&newlive, UpdateNeighbors);
@@ -181,6 +173,5 @@ int _tmain(int argc, _TCHAR* argv[]) {
 	clock_t end = clock();
 	double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
 	std::cout << "Simulated " << GENS << " generations in " << elapsed_secs << " sec." << std::endl;
-	system("pause");
 	return 0;
 }

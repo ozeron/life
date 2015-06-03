@@ -9,9 +9,9 @@
 #include <fstream>
 #include <ctime>
 
-const unsigned int MAXROW = 1000;
-const unsigned int MAXCOL = 1000;
-const unsigned int GENS = 300;
+unsigned int MAXROW = 20;
+unsigned int MAXCOL = 20;
+unsigned int GENS = 68;
 
 struct cell {
 	int row;
@@ -93,7 +93,7 @@ void Initialize(Grid& map, GridCount& neighbours, List* newlive, List* newdie, L
 			neighbours[row][col] = 0;
 		}
 	}
-
+	//file >> GENS >> MAXROW >> MAXCOL;
 	file >> row;
 	file >> col;
 	//std::cout << row << "#" << col << std::endl;
@@ -102,6 +102,7 @@ void Initialize(Grid& map, GridCount& neighbours, List* newlive, List* newdie, L
 			cell newCell = {row, col};
 			if (map[row][col] == dead) {
 				newlive->push_back(newCell);
+				maydie->push_back(newCell);
 			}
 			map[row][col] = alive;
 		}
@@ -154,10 +155,11 @@ void Error(std::string str){
 int _tmain(int argc, _TCHAR* argv[]) {
 	clock_t begin = clock();
 	unsigned int gencount = 0;
-	std::string file_p("Y:\\Documents\\data_b.txt");
+	std::string file_p("D:\data.txt");
 	Initialize(map, numNeighbors, &newlive, &newdie, &maylive, &maydie, file_p);
-	//WriteMap(map, gencount);
+	WriteMap(map, gencount);
 	while (gencount < GENS) {
+		WriteMap(map, gencount);
 		gencount++;
 		TraverseList(&maylive, Vivify);
 		TraverseList(&maydie, Kill);
@@ -168,7 +170,7 @@ int _tmain(int argc, _TCHAR* argv[]) {
 		newlive.clear();
 		newdie.clear();
 	}
-	//WriteMap(map, gencount);
+	WriteMap(map, gencount);
 	clock_t end = clock();
 	double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
 	std::cout << "Simulated " << GENS << " generations in " << elapsed_secs << " sec." << std::endl;

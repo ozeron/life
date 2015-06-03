@@ -62,7 +62,6 @@ ints sendNewToTop,  // list contain new cells from first row
 			sendNewToBottom; // list contain new cells from last row
 MPI_Datatype  MPI_CELL;
 
-
 void  MakeMpiCell(MPI_Datatype*  cell)
 {
 	// Set up cell datatype for communication
@@ -73,6 +72,25 @@ void  MakeMpiCell(MPI_Datatype*  cell)
 	MPI_Type_struct(1, count, addr, entryType, cell);
 	MPI_Type_commit(cell);
 } // MakeMpiCell
+
+void DumpNeighbours(){
+	int rank;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	if (rank != 2){
+		return;
+	}
+	for (int r = STARTROW-1; r <= MAXROW + 1; r++){
+		cout << "Rank: " << rank << " ";
+		for (int c = 0; c <= MAXCOL + 1; c++){
+			cout << numNeighbors[r][c];
+		}
+		cout << "   ";
+		for (int c = 0; c <= MAXCOL + 1; c++){
+			cout << ((map[r][c] == alive) ? "A" : "_");
+		}
+		cout << endl;
+	}
+}
 	
 void UpdateNeighbors(cell cc){
 	int r,              // loop index for row of neighbor loops
@@ -154,7 +172,6 @@ void ReadInput(std::string file_p, int_int *splittedTasks){
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
 	splittedTasks->resize(size);
 	std::ifstream file(file_p);
-
 	file >> row;
 	file >> col;
 	//std::cout << row << "#" << col << std::endl;
@@ -176,6 +193,7 @@ void Initialize(Grid& map, GridCount& neighbours, List* newlive, List* newdie, L
 	int row = 0, col = 0;
 	map.resize(MAXROW + 2);
 	neighbours.resize(MAXROW + 2);
+	//cout << "RANK: " << rank << " STA " << STARTROW << " " << MAXROW << endl;
 	for (int row = STARTROW-1; row <= MAXROW + 1; row++) {
 		map[row].resize(MAXCOL + 2);
 		neighbours[row].resize(MAXCOL + 2);
@@ -191,6 +209,7 @@ void Initialize(Grid& map, GridCount& neighbours, List* newlive, List* newdie, L
 		cell c = { row, col };
 		if (map[row][col] == dead) {
 			newlive->push_back(c);
+			maydie->push_back(c);
 		}
 		map[row][col] = alive;
 	}
@@ -201,7 +220,7 @@ void Initialize(Grid& map, GridCount& neighbours, List* newlive, List* newdie, L
 }
 
 char* MapToString(Grid& map){
-	int size = MAXCOL*(MAXROW+1);
+	int size = MAXCOL*(MAXROW+3);
 	char* str = new char [size];
 	for (int i = 0; i < size; i++) str[i] = '\0';
 	for (int row = STARTROW; row <= MAXROW; row++) {
@@ -211,6 +230,7 @@ char* MapToString(Grid& map){
 		}
 		str = strcat(str, "\n");
 	}
+	str = strcat(str, "\n");
 	return str;
 }
 
@@ -304,29 +324,28 @@ void  UpdateBorders(int* border, int r)
 	for (int i = 0; i < MAXCOL; i++){
 		int c = i + 1;
 		numNeighbors[r][c] += border[i];
-		switch (numNeighbors[r][c]) {
-		case 1:
+		int neighbours = numNeighbors[r][c];
+		if (neighbours < 2){
 			if (map[r][c] == alive) {
 				neighbor.row = r;
 				neighbor.col = c;
 				maydie.push_back(neighbor);
 			}
-			break;
-		case 3:
+		}
+		if (neighbours == 3){
 			if (map[r][c] == dead) {
 				neighbor.row = r;
 				neighbor.col = c;
 				maylive.push_back(neighbor);
 			}
-			break;
-		case 4:
+		}
+		if (neighbours > 3){
 			if (map[r][c] == alive) {
 				neighbor.row = r;
 				neighbor.col = c;
 				maydie.push_back(neighbor);
 			}
-			break;
-		}  // switch
+		}
 	}
 	
 } // UpdateBorders
@@ -361,9 +380,9 @@ void  SendToNeighbor(ints *sendListHigher,
 		rankMinus1 = myRankMinus1(),
 		received;
 
-	/*std::cout << "Rank" << rank << " Sending higher ";
-	CoutArray(sendCellsHigher);
-	cout << endl;*/
+	//std::cout << "Rank" << rank << " Sending higher ";
+	//CoutArray(sendCellsHigher);
+	//cout << endl;
 	MPI_Isend(sendCellsHigher, MAXCOL, MPI_INT, rankMinus1, TAG, MPI_COMM_WORLD, &sendHandleHigher);
 	/*std::cout << "Rank" << rank << " Sending lower ";
 	CoutArray(sendCellsLower);
@@ -445,8 +464,7 @@ void simulate(){
 		SendToNeighbor(higher, lower);
 		Zerify(higher);
 		Zerify(lower);
-
-		//PrintParallel(gencount);
+		PrintParallel(gencount);
 		gencount++;
 		TraverseList(&maylive, Vivify);
 		TraverseList(&maydie, Kill);
@@ -472,7 +490,7 @@ void run(){
 	MPI_Status status;
 	MPI_Request request;
 	if (rank == 0) {
-		std::string file_p("D:\\data.txt");
+		char* file_p = "D:\\data.txt";
 		ReadInput(file_p, &input);
 		current_input = (input[rank].size() > 0) ? &input[rank][0] : nullptr;
 		size = input[rank].size();
@@ -496,10 +514,11 @@ void run(){
 		MPI_Recv(&start, 1, MPI_INT, 0, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 		MPI_Recv(&end, 1, MPI_INT, 0, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 		MPI_Recv(&size, 1, MPI_INT, 0, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		
 		current_input = new int[size];
 		STARTROW = start;
 		MAXROW = end;
-		//std::cout << "Received should be " << size << std::endl;
+		//std::cout << "Rank " << rank << " startrow " << STARTROW << " MAXROW "<< MAXROW << std::endl;
 		MPI_Status status;
 		int received;
 		MPI_Recv(current_input, size, MPI_INT, 0, TAG, MPI_COMM_WORLD, &status);
@@ -521,7 +540,7 @@ void run(){
 	
 }
 
-int _tmain(int argc, char* argv[]) {
+int _tmain(int argc, char** argv) {
 	int rank;
 	clock_t begin, end;
 	MPI_Init(&argc, &argv);
