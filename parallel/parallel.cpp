@@ -21,10 +21,10 @@
 
 using namespace std;
 
-const unsigned int GENS = 68;
+const unsigned int GENS = 100;
 unsigned int STARTROW=1,
-	MAXROW = 20,
-	MAXCOL = 20,
+	MAXROW = 1000,
+	MAXCOL = 1000,
 	GLOBAL_MAXROW = MAXROW,
 	GLOBAL_MAXCOL = MAXCOL;
 
@@ -457,14 +457,14 @@ void PrintParallel(int gens){
 
 void simulate(){
 	unsigned int gencount = 0;
-	PrintParallel(gencount);
+	//PrintParallel(gencount);
 	while (gencount < GENS) {
 		ints *higher = &(numNeighbors[STARTROW - 1]);
 		ints *lower = &numNeighbors[MAXROW + 1];
 		SendToNeighbor(higher, lower);
 		Zerify(higher);
 		Zerify(lower);
-		PrintParallel(gencount);
+		//PrintParallel(gencount);
 		gencount++;
 		TraverseList(&maylive, Vivify);
 		TraverseList(&maydie, Kill);
@@ -475,7 +475,7 @@ void simulate(){
 		newlive.clear();
 		newdie.clear();
 	}
-	PrintParallel(gencount);
+	//PrintParallel(gencount);
 }
 
 

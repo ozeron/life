@@ -9,9 +9,9 @@
 #include <fstream>
 #include <ctime>
 
-unsigned int MAXROW = 20;
-unsigned int MAXCOL = 20;
-unsigned int GENS = 68;
+unsigned int MAXROW = 1000;
+unsigned int MAXCOL = 1000;
+unsigned int GENS = 100;
 
 struct cell {
 	int row;
@@ -157,9 +157,9 @@ int _tmain(int argc, _TCHAR* argv[]) {
 	unsigned int gencount = 0;
 	std::string file_p("D:\data.txt");
 	Initialize(map, numNeighbors, &newlive, &newdie, &maylive, &maydie, file_p);
-	WriteMap(map, gencount);
+	//WriteMap(map, gencount);
 	while (gencount < GENS) {
-		WriteMap(map, gencount);
+		//WriteMap(map, gencount);
 		gencount++;
 		TraverseList(&maylive, Vivify);
 		TraverseList(&maydie, Kill);
@@ -170,7 +170,7 @@ int _tmain(int argc, _TCHAR* argv[]) {
 		newlive.clear();
 		newdie.clear();
 	}
-	WriteMap(map, gencount);
+	//WriteMap(map, gencount);
 	clock_t end = clock();
 	double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
 	std::cout << "Simulated " << GENS << " generations in " << elapsed_secs << " sec." << std::endl;
